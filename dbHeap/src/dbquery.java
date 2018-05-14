@@ -27,17 +27,23 @@ public class dbquery implements dbimpl
    // reading command line arguments
    public void readArguments(String args[])
    {
+	   
+	   String name = null;
+	   int size = 0;
+	   if(args.length != 2){
+		   name = "/Users/asliyoruk/Desktop/heapfile/dbHeap/bin/heap.";
+		   size = 4096;
+	   }
       if (args.length == 2)
       {
          if (isInteger(args[1]))
          {
-            readHeap(args[0], Integer.parseInt(args[1]));
+            name = args[0];
+            size = Integer.valueOf(args[1]);
          }
       }
-      else
-      {
-          System.out.println("Error: only pass in two arguments");
-      }
+      
+      readHeap(name, size);
    }
 
    // check if pagesize is a valid integer
@@ -56,6 +62,77 @@ public class dbquery implements dbimpl
       return isValidInt;
    }
 
+   public void readAllRecordsInHeap(String name, int pagesize)
+   {
+      File heapfile = new File(HEAP_FNAME + pagesize);
+      int intSize = 4;
+      int pageCount = 0;
+      int recCount = 0;
+      int recordLen = 0;
+      int rid = 0;
+      boolean isNextPage = true;
+      boolean isNextRecord = true;
+      try
+      {
+         FileInputStream fis = new FileInputStream(heapfile);
+         // reading page by page
+         while (isNextPage)
+         {
+            byte[] bPage = new byte[pagesize];
+            byte[] bPageNum = new byte[intSize];
+            fis.read(bPage, 0, pagesize);
+            System.arraycopy(bPage, bPage.length-intSize, bPageNum, 0, intSize);
+
+            // reading by record, return true to read the next record
+            isNextRecord = true;
+            while (isNextRecord)
+            {
+               byte[] bRecord = new byte[RECORD_SIZE];
+               byte[] bRid = new byte[intSize];
+               try
+               {
+                  System.arraycopy(bPage, recordLen, bRecord, 0, RECORD_SIZE);
+                  System.arraycopy(bRecord, 0, bRid, 0, intSize);
+                  rid = ByteBuffer.wrap(bRid).getInt();
+                  if (rid != recCount)
+                  {
+                     isNextRecord = false;
+                  }
+                  else
+                  {
+                     printRecord(bRecord, name);
+                     recordLen += RECORD_SIZE;
+                  }
+                  recCount++;
+                  // if recordLen exceeds pagesize, catch this to reset to next page
+               }
+               catch (ArrayIndexOutOfBoundsException e)
+               {
+                  isNextRecord = false;
+                  recordLen = 0;
+                  recCount = 0;
+                  rid = 0;
+               }
+            }
+            // check to complete all pages
+            if (ByteBuffer.wrap(bPageNum).getInt() != pageCount)
+            {
+               isNextPage = false;
+            }
+            pageCount++;
+         }
+      }
+      catch (FileNotFoundException e)
+      {
+         System.out.println("File: " + HEAP_FNAME + pagesize + " not found.");
+      }
+      catch (IOException e)
+      {
+         e.printStackTrace();
+      }
+   }
+   
+   
    // read heapfile by page
    public void readHeap(String name, int pagesize)
    {
@@ -136,7 +213,8 @@ public class dbquery implements dbimpl
                           RID_SIZE+REGISTER_NAME_SIZE+BN_NAME_SIZE);
       if (BN_NAME.toLowerCase().contains(input.toLowerCase()))
       {
-         System.out.println(record);
+          System.out.println("-=-=-=-=-=-=-=-=-");
+          System.out.println(record);
       }
    }
 }

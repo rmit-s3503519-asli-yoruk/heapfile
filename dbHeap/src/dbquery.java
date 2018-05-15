@@ -31,7 +31,6 @@ public class dbquery implements dbimpl
 	   String name = null;
 	   int size = 0;
 	   if(args.length != 2){
-		   name = "/Users/asliyoruk/Desktop/heapfile/dbHeap/bin/heap.";
 		   size = 4096;
 	   }
       if (args.length == 2)

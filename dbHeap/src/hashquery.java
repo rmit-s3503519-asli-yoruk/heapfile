@@ -32,6 +32,7 @@ public class hashquery implements dbimpl {
 		if (index == null) {
 			// print
 		} else {
+			//hardcoded index number for the file we want to search
 			readHeapFile(2523756, pagesize);
 		}
 

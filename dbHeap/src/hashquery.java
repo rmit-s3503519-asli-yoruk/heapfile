@@ -28,11 +28,17 @@ public class hashquery implements dbimpl {
 
 	@Override
 	public void readArguments(String[] args) {
-		readIndex(args[0], pagesize);
+		Integer index = readIndex(args[0], pagesize);
+		if (index == null) {
+			// print
+		} else {
+			readHeapFile(2523756, pagesize);
+		}
 
 	}
 
 	private void readHeapFile(Integer index, int pagesize) {
+		System.out.println("Reading Heap file for index " + index);
 		File heapfile = new File(HEAP_FNAME + pagesize);
 		int intSize = 4;
 		int pageCount = 0;
@@ -43,17 +49,25 @@ public class hashquery implements dbimpl {
 		boolean isNextRecord = true;
 		try {
 			FileInputStream fis = new FileInputStream(heapfile);
-			// reading page by page
-			byte[] bPage = new byte[pagesize];
-			byte[] bPageNum = new byte[intSize];
-			fis.getChannel().position(index);
-			fis.read(bPage, 0, pagesize);
-			System.arraycopy(bPage, bPage.length - intSize, bPageNum, 0, intSize);
-
 			byte[] bRecord = new byte[RECORD_SIZE];
-			byte[] bRid = new byte[intSize];
-			System.arraycopy(bPage, recordLen, bRecord, 0, RECORD_SIZE);
-			System.arraycopy(bRecord, 0, bRid, 0, intSize);
+			
+			int recPerPage = pagesize / RECORD_SIZE;
+			int pageNumber = index / recPerPage;
+			int recOnPage = index % recPerPage;
+			
+			long offset = (pageNumber * pagesize) + (recOnPage * RECORD_SIZE);
+			
+			System.out.println("---------" + offset);
+			
+//			offset = offset + (0 * (int)(offset / pagesize));
+			System.out.println("-------->>" + offset);
+			
+			
+			fis.getChannel().position(offset);
+			fis.read(bRecord, 0, RECORD_SIZE);
+
+			printRecord(bRecord);
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
@@ -62,22 +76,23 @@ public class hashquery implements dbimpl {
 	}
 
 	private Integer readIndex(String search, int pagesize) {
-		
+
 		System.out.println("Starting to read index");
-		
+
 		int intSize = 4;
 		int pageCount = 0;
 		int recCount = 0;
 		int recordLen = 0;
 		int rid = 0;
-		byte[] bPage = new byte[pagesize];
+		byte[] bPage = new byte[32];
 		byte[] bPageNum = new byte[intSize];
-		byte[] bRecord = new byte[RECORD_SIZE];
+		byte[] bRecord = new byte[32];
 		byte[] bRid = new byte[intSize];
 		File hashfile = new File(HASH_FNAME + pagesize);
 		int searchHash = generateHash(search);
 		int bucket = searchHash % bucketSize;
 		String key = String.valueOf(searchHash);
+		String bIndex = null;
 
 		System.out.println(searchHash + "___" + bucket + "____" + key);
 		boolean isNextPage = true;
@@ -85,13 +100,17 @@ public class hashquery implements dbimpl {
 		try {
 			fis = new FileInputStream(hashfile);
 
-			fis.read(bPage, 0, pagesize);
-			System.arraycopy(bPage, bPage.length - intSize, bPageNum, 0, intSize);
+			fis.getChannel().position(bucket * 32);
+			fis.read(bPage, 0, 32);
+			// System.arraycopy(bPage, bPage.length - intSize, bPageNum, 0,
+			// intSize);
 
-			System.arraycopy(bPage, recordLen, bRecord, 0, RECORD_SIZE);
-			System.arraycopy(bRecord, 0, bRid, 0, intSize);
-			
+			System.arraycopy(bPage, 0, bRecord, 0, 32);
+
 			System.out.println("Found.... " + new String(bRecord));
+
+			bIndex = new String(bRecord).substring(16);
+			System.out.println("Extracted index.... " + bIndex);
 
 		} catch (FileNotFoundException e) {
 			System.out.println("File: " + HEAP_FNAME + pagesize + " not found.");
@@ -99,8 +118,15 @@ public class hashquery implements dbimpl {
 			e.printStackTrace();
 		}
 
-		return Integer.parseInt(new String(bRecord));
+		return bIndex == null ? null : Integer.valueOf(bIndex.trim());
 
+	}
+
+	public void printRecord(byte[] rec) {
+		String record = new String(rec);
+		String BN_NAME = record.substring(RID_SIZE + REGISTER_NAME_SIZE, RID_SIZE + REGISTER_NAME_SIZE + BN_NAME_SIZE);
+		System.out.println("-=-=-=-=-=-=-=-=-" + BN_NAME);
+		System.out.println(record);
 	}
 
 	@Override

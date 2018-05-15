@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +15,7 @@ public class hashload implements dbimpl {
 	// accepts pagesize
 
 	// hash.pagesize
-	int bucketSize = 4096;
+	int bucketSize = 4096*4096;
 	int pagesize = 4096;
 	int[] primes = { 37, 43, 53, 61, 73 };
 	private final String HASH_FNAME = "hash.";
@@ -33,13 +34,13 @@ public class hashload implements dbimpl {
 
 		File hashfile = new File(HASH_FNAME + pagesize);
 		BufferedReader hashReader = null;
-		FileOutputStream fosHash = null;
 		String line = "";
 		String nextLine = "";
 		String stringDelimeter = "\t";
 		byte[] RECORD = new byte[8 + 100];
 		int outCountHash, pageCountHash, recCountHash = 0;
 
+		RandomAccessFile writer = null;
 		File heapfile = new File(HEAP_FNAME + pagesize);
 		int intSize = 4;
 		int pageCount = 0;
@@ -51,7 +52,8 @@ public class hashload implements dbimpl {
 		boolean isNextRecord = true;
 		try {
 			FileInputStream fis = new FileInputStream(heapfile);
-			fosHash = new FileOutputStream(hashfile);
+			
+			 writer = new RandomAccessFile(hashfile, "rw");
 			// reading page by page
 			while (isNextPage) {
 				byte[] bPage = new byte[pagesize];
@@ -71,7 +73,7 @@ public class hashload implements dbimpl {
 						if (rid != recCount) {
 							isNextRecord = false;
 						} else {
-							addToHashFile(bRecord, fosHash, recordNumber++);
+							addToHashFile(bRecord, writer, recordNumber++);
 							recordLen += RECORD_SIZE;
 						}
 						recCount++;
@@ -96,7 +98,7 @@ public class hashload implements dbimpl {
 			e.printStackTrace();
 		} finally {
 			try {
-				fosHash.close();
+				writer.close();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -104,7 +106,7 @@ public class hashload implements dbimpl {
 		}
 	}
 
-	private void addToHashFile(byte[] bRecord, FileOutputStream fosHash, int rid) throws IOException {
+	private void addToHashFile(byte[] bRecord, RandomAccessFile writer, int rid) throws IOException {
 		String bName = new String(bRecord).substring(RID_SIZE + REGISTER_NAME_SIZE,
 				RID_SIZE + REGISTER_NAME_SIZE + BN_NAME_SIZE);
 
@@ -120,9 +122,16 @@ public class hashload implements dbimpl {
 		System.arraycopy(keyBytes, 0, RECORD, 0, 16);
 		System.arraycopy(String.valueOf(rid).getBytes(), 0, ridBytes, 0, String.valueOf(rid).getBytes().length);
 		System.arraycopy(ridBytes, 0, RECORD, 16, 16);
-//		System.out.println(new String(RECORD));
-		fosHash.write(RECORD);
-//		System.out.println(new String(RECORD));
+		
+		String printName = new String(bRecord).substring(RID_SIZE + REGISTER_NAME_SIZE,
+				RID_SIZE + REGISTER_NAME_SIZE + BN_NAME_SIZE);		
+		
+		if(printName.toLowerCase().contains("engineering")){
+			System.out.println("Index _____ >> " + new String(ridBytes) + "__" + printName);
+//			System.out.println(new String(RECORD));
+		}
+//		writer.seek(bucket * 32);
+		writer.write(RECORD);
 	}
 
 	private void createHashFildsdsde() {
